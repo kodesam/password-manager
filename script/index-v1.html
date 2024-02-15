@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Password History</title>
+  <style>
+    table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 8px;
+  text-align: left;
+}
+
+th:first-child, td:first-child {
+  width: 20%;
+}
+
+th:nth-child(2), td:nth-child(2) {
+  width: 25%;
+}
+
+th:nth-child(3), td:nth-child(3) {
+  width: 20%;
+}
+
+th:nth-child(4), td:nth-child(4) {
+  width: 25%;
+}
+  </style>
+</head>
+<body>
+  <h1>Password Manager</h1>
+  <h2>Password History</h2>
+  <ul id="historyList"></ul>
+  <button onclick="showHistory()">Show History</button>
+
+  <form id="passwordForm">
+    <input type="text" id="descInput" placeholder="Description" required>
+    <input type="url" id="urlInput" placeholder="URL" required>
+    <input type="text" id="usernameInput" placeholder="Username" required>
+    <input type="password" id="passwordInput" placeholder="Password" required>
+    <button type="button" onclick="savePassword()">Save</button>
+  </form>
+
+  <table id="passwordTable">
+    <tr>
+      <th>Description</th>
+      <th>URL</th>
+      <th>Username</th>
+      <th>Password</th>
+      <th>Action</th>
+    </tr>
+  </table>
+
+  <script>
+    var passwordHistory = [];
+
+function savePassword() {
+  var desc = document.getElementById("descInput").value;
+  var url = document.getElementById("urlInput").value;
+  var username = document.getElementById("usernameInput").value;
+  var password = document.getElementById("passwordInput").value;
+
+  var table = document.getElementById("passwordTable");
+  var newRow = table.insertRow(-1);
+
+  var descCell = newRow.insertCell(0);
+  descCell.innerHTML = '<span class="copyText" title="Click to copy" onclick="copyText(this)">' + desc + '</span>';
+
+  var urlCell = newRow.insertCell(1);
+  urlCell.innerHTML = '<span class="copyText" title="Click to copy" onclick="copyText(this)">' + url + '</span>';
+
+  var usernameCell = newRow.insertCell(2);
+  usernameCell.innerHTML = '<span class="copyText" title="Click to copy" onclick="copyText(this)">' + username + '</span>';
+
+  var passwordCell = newRow.insertCell(3);
+  passwordCell.innerHTML =
+    '<span class="copyText hiddenPassword">' +
+    password +
+    '</span><button class="showPasswordButton" onclick="togglePasswordVisibility(this)">Show</button>';
+
+  var actionCell = newRow.insertCell(4);
+  actionCell.innerHTML =
+    '<button class="editButton" onclick="editHistory(this)">Edit</button>';
+
+  document.getElementById("descInput").value = "";
+  document.getElementById("urlInput").value = "";
+  document.getElementById("usernameInput").value = "";
+  document.getElementById("passwordInput").value = "";
+
+  var passwordEntry = { desc: desc, url: url, username: username, password: password };
+  passwordHistory.push(passwordEntry);
+
+  var passwordHistoryJSON = JSON.stringify(passwordHistory);
+  localStorage.setItem("passwordHistory", passwordHistoryJSON);
+}
+
+function togglePasswordVisibility(button) {
+  var passwordSpan = button.previousSibling;
+  passwordSpan.classList.toggle("hiddenPassword");
+  if (button.textContent === "Show") {
+    button.textContent = "Hide";
+  } else {
+    button.textContent = "Show";
+  }
+}
+
+function showHistory() {
+  var historyList = document.getElementById("historyList");
+  historyList.innerHTML = "";
+
+  passwordHistory.forEach(function (passwordEntry, index) {
+    var item = document.createElement("li");
+
+    var descSpan = document.createElement("span");
+    descSpan.className = "copyText";
+    descSpan.title = "Click to copy";
+    descSpan.onclick = function () { copyText(this); };
+    descSpan.textContent = passwordEntry.desc;
+
+    var urlSpan = document.createElement("span");
+    urlSpan.className = "copyText";
+    urlSpan.title = "Click to copy";
+    urlSpan.onclick = function () { copyText(this); };
+    urlSpan.textContent = passwordEntry.url;
+
+    var usernameSpan = document.createElement("span");
+    usernameSpan.className = "copyText";
+    usernameSpan.title = "Click to copy";
+    usernameSpan.onclick = function () { copyText(this); };
+    usernameSpan.textContent = passwordEntry.username;
+
+    var passwordSpan = document.createElement("span");
+    passwordSpan.className = "copyText hiddenPassword";
+    passwordSpan.title = "Click to copy";
+    passwordSpan.onclick = function () { copyText(this); };
+    passwordSpan.textContent = passwordEntry.password;
+
+    var showButton = document.createElement("button");
+    showButton.className = "showPasswordButton";
+    showButton.textContent = "Show";
+    showButton.onclick = function () { togglePasswordVisibility(this); };
+
+    var editButton = document.createElement("button");
+    editButton.className = "editButton";
+    editButton.textContent = "Edit";
+    editButton.onclick = function () { editHistory(index); };
+
+    item.appendChild(descSpan);
+    item.appendChild(urlSpan);
+    item.appendChild(usernameSpan);
+    item.appendChild(passwordSpan);
+    item.appendChild(showButton);
+    item.appendChild(editButton);
+
+    historyList.appendChild(item);
+  });
+}
+
+function editHistory(index) {
+  var historyList = document.getElementById("historyList");
+  var item = historyList.children[index];
+
+  var descSpan = item.children[0];
+  var urlSpan = item.children[1];
+  var usernameSpan = item.children[2];
+  var passwordSpan = item.children[3];
+
+  var descValue = descSpan.textContent;
+  var urlValue = urlSpan.textContent;
+  var usernameValue = usernameSpan.textContent;
+  var passwordValue = passwordSpan.textContent;
+
+  descSpan.innerHTML = '<input type="text" class="editInput" value="' + descValue + '">';
+  urlSpan.innerHTML = '<input type="url" class="editInput" value="' + urlValue + '">';
+  usernameSpan.innerHTML = '<input type="text" class="editInput" value="' + usernameValue + '">';
+  passwordSpan.innerHTML = '<input type="password" class="editInput" value="' + passwordValue + '">';
+
+  var editButton = item.querySelector(".editButton");
+  editButton.textContent = "Save";
+  editButton.onclick = function () { saveEdit(index); };
+}
+
+function saveEdit(index) {
+  var historyList = document.getElementById("historyList");
+  var item = historyList.children[index];
+
+  var descInput = item.querySelector(".editInput[type='text']");
+  var urlInput = item.querySelector(".editInput[type='url']");
+  var usernameInput = item.querySelector(".editInput[type='text']");
+  var passwordInput = item.querySelector(".editInput[type='password']");
+
+  var descValue = descInput.value;
+  var urlValue = urlInput.value;
+  var usernameValue = usernameInput.value;
+  var passwordValue = passwordInput.value;
+
+  var descSpan = document.createElement("span");
+  descSpan.className = "copyText";
+  descSpan.title = "Click to copy";
+  descSpan.onclick = function () { copyText(this); };
+  descSpan.textContent = descValue;
+
+  var urlSpan = document.createElement("span");
+  urlSpan.className = "copyText";
+  urlSpan.title = "Click to copy";
+  urlSpan.onclick = function () { copyText(this); };
+  urlSpan.textContent = urlValue;
+
+  var usernameSpan = document.createElement("span");
+  usernameSpan.className = "copyText";
+  usernameSpan.title = "Click to copy";
+  usernameSpan.onclick = function () { copyText(this); };
+  usernameSpan.textContent = usernameValue;
+
+  var passwordSpan = document.createElement("span");
+  passwordSpan.className = "copyText hiddenPassword";
+  passwordSpan.title = "Click to copy";
+  passwordSpan.onclick = function () { copyText(this); };
+  passwordSpan.textContent = passwordValue;
+
+  item.replaceChild(descSpan, descInput);
+  item.replaceChild(urlSpan, urlInput);
+  item.replaceChild(usernameSpan, usernameInput);
+  item.replaceChild(passwordSpan, passwordInput);
+
+  var editButton = item.querySelector(".editButton");
+  editButton.textContent = "Edit";
+  editButton.onclick = function () { editHistory(index); };
+
+  passwordHistory[index].desc = descValue;
+  passwordHistory[index].url = urlValue;
+  passwordHistory[index].username = usernameValue;
+  passwordHistory[index].password = passwordValue;
+
+  var passwordHistoryJSON = JSON.stringify(passwordHistory);
+  localStorage.setItem("passwordHistory", passwordHistoryJSON);
+}
+
+function copyText(element) {
+  var text = element.textContent;
+
+  var input = document.createElement("textarea");
+  input.style.position = "fixed";
+  input.style.opacity = 0;
+  input.value = text;
+  document.body.appendChild(input);
+  input.select();
+  document.execCommand("copy");
+  document.body.removeChild(input);
+
+  element.textContent = "Copied!";
+}
+
+var storedPasswordHistory = localStorage.getItem("passwordHistory");
+if (storedPasswordHistory) {
+  passwordHistory = JSON.parse(storedPasswordHistory);
+}
+  </script>
+</body>
+</html>
