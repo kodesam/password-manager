@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Password History</title>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 8px;
+      text-align: left;
+    }
+
+    th:first-child, td:first-child {
+      width: 20%;
+    }
+
+    th:nth-child(2), td:nth-child(2) {
+      width: 25%;
+    }
+
+    th:nth-child(3), td:nth-child(3) {
+      width: 20%;
+    }
+
+    th:nth-child(4), td:nth-child(4) {
+      width: 25%;
+    }
+
+    .password:hover,
+    .url:hover {
+      cursor: pointer;
+      background-color: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+  <h1>Password Manager</h1>
+  <h2>Password History</h2>
+  <ul id="historyList"></ul>
+  <button onclick="showHistory()">Show History</button>
+
+  <form id="passwordForm" onsubmit="savePassword(event)">
+    <input type="text" id="descInput" placeholder="Description" required>
+    <input type="url" id="urlInput" placeholder="URL" required>
+    <input type="text" id="usernameInput" placeholder="Username" required>
+    <input type="password" id="passwordInput" placeholder="Password" required>
+    <button type="submit">Save</button>
+  </form>
+
+  <table id="passwordTable">
+    <tr>
+      <th>Description</th>
+      <th>URL</th>
+      <th>Username</th>
+      <th>Password</th>
+      <th>Action</th>
+    </tr>
+  </table>
+
+  <button onclick="resetRecords()">Reset All Records</button>
+
+  <script>
+    var passwordHistory = JSON.parse(localStorage.getItem("passwordHistory")) || [];
+    var editMode = false; // Added a flag for edit mode
+    var editedIndex = null; // Track the index of the edited record
+
+    function savePassword(event) {
+      event.preventDefault();
+
+      var desc = document.getElementById("descInput").value;
+      var url = document.getElementById("urlInput").value;
+      var username = document.getElementById("usernameInput").value;
+      var password = document.getElementById("passwordInput").value;
+
+      if (editMode) {
+        // Edit the existing record
+        passwordHistory[editedIndex] = { desc: desc, url: url, username: username, password: password };
+        editMode = false;
+        editedIndex = null;
+      } else {
+        // Add a new record
+        var passwordEntry = { desc: desc, url: url, username: username, password: password };
+        passwordHistory.push(passwordEntry);
+      }
+
+      saveToLocalStorage(); // Save the updated password history to local storage
+
+      renderPasswordRecords();
+      document.getElementById("passwordForm").reset();
+    }
+
+    function renderPasswordRecords() {
+      var passwordRecords = document.getElementById("passwordTable");
+      passwordRecords.innerHTML = `
+        <tr>
+          <th>Description</th>
+          <th>URL</th>
+          <th>Username</th>
+          <th>Password</th>
+          <th>Action</th>
+        </tr>
+      `;
+
+      passwordHistory.forEach(function (passwordEntry, index) {
+        var row = document.createElement("tr");
+
+        var descCell = document.createElement("td");
+        descCell.textContent = passwordEntry.desc;
+
+        var urlCell = document.createElement("td");
+        urlCell.textContent = passwordEntry.url;
+        urlCell.classList.add("url"); // Add the 'url' class for mouse hover effect
+        urlCell.setAttribute("title", "Click to copy URL"); // Set the title attribute for copy tooltip
+        urlCell.addEventListener("click", function () {
+          copyURL(passwordEntry.url);
+        });
+
+        var usernameCell = document.createElement("td");
+        usernameCell.textContent = passwordEntry.username;
+
+        var passwordCell = document.createElement("td");
+        passwordCell.textContent = "*".repeat(passwordEntry.password.length);
+        passwordCell.classList.add("password"); // Add the 'password' class for mouse hover effect
+        passwordCell.setAttribute("title", "Click to copy password"); // Set the title attribute for copy tooltip
+        passwordCell.addEventListener("click", function () {
+          copyPassword(passwordEntry.password);
+        });
+
+        var showButton = document.createElement("button");
+        showButton.className = "show-button";
+        showButton.textContent = "Show";
+        showButton.addEventListener("click", function () {
+          showPassword(index);
+        });
+
+        var hideButton = document.createElement("button");
+        hideButton.className = "hide-button";
+        hideButton.textContent = "Hide";
+        hideButton.style.display = "none";
+        hideButton.addEventListener("click", function () {
+          hidePassword(index);
+        });
+
+        var editButton = document.createElement("button");
+        editButton.className = "edit-button";
+        editButton.textContent = "Edit";
+        editButton.addEventListener("click", function () {
+          editPassword(index);
+        });
+
+        var actionCell = document.createElement("td");
+        actionCell.appendChild(showButton);
+        actionCell.appendChild(hideButton);
+        actionCell.appendChild(editButton);
+
+        row.appendChild(descCell);
+        row.appendChild(urlCell);
+        row.appendChild(usernameCell);
+        row.appendChild(passwordCell);
+        row.appendChild(actionCell);
+
+        passwordRecords.appendChild(row);
+      });
+    }
+
+    function saveToLocalStorage() {
+      localStorage.setItem("passwordHistory", JSON.stringify(passwordHistory));
+    }
+
+    function showPassword(index) {
+      var passwordCell = document.getElementById("passwordTable").rows[index + 1].cells[3];
+      var showButton = document.getElementById("passwordTable").rows[index + 1].querySelector(".show-button");
+      var hideButton = document.getElementById("passwordTable").rows[index + 1].querySelector(".hide-button");
+
+      passwordCell.textContent = passwordHistory[index].password;
+      showButton.style.display = "none";
+      hideButton.style.display = "";
+    }
+
+    function hidePassword(index) {
+      var passwordCell = document.getElementById("passwordTable").rows[index + 1].cells[3];
+      var showButton = document.getElementById("passwordTable").rows[index + 1].querySelector(".show-button");
+      var hideButton = document.getElementById("passwordTable").rows[index + 1].querySelector(".hide-button");
+
+      var passwordLength = passwordHistory[index].password.length;
+      passwordCell.textContent = "*".repeat(passwordLength);
+      showButton.style.display = "";
+      hideButton.style.display = "none";
+    }
+
+    function editPassword(index) {
+      var descInput = document.getElementById("descInput");
+      var urlInput = document.getElementById("urlInput");
+      var usernameInput = document.getElementById("usernameInput");
+      var passwordInput = document.getElementById("passwordInput");
+
+      descInput.value = passwordHistory[index].desc;
+      urlInput.value = passwordHistory[index].url;
+      usernameInput.value = passwordHistory[index].username;
+      passwordInput.value = passwordHistory[index].password;
+
+      var saveButton = document.querySelector("form button[type='submit']");
+      saveButton.textContent = "Save Edit";
+
+      editMode = true;
+      editedIndex = index;
+    }
+
+    function resetRecords() {
+      passwordHistory = [];
+      saveToLocalStorage();
+      renderPasswordRecords();
+    }
+
+    function copyURL(url) {
+      var tempInput = document.createElement("input");
+      tempInput.value = url;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+    }
+
+    function copyPassword(password) {
+      var tempInput = document.createElement("input");
+      tempInput.value = password;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+    }
+
+    function init() {
+      renderPasswordRecords();
+    }
+
+    init();
+  </script>
+</body>
+</html>
