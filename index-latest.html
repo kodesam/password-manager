@@ -336,7 +336,7 @@
           urlRow.dataset.domain = domain;
           urlRow.innerHTML = `
             <td colspan="2">${urlData.urlDesc}</td>
-            <td colspan="2">${urlData.url}</td>
+            <td colspan="2" class="url" onclick="copyToClipboard('${urlData.url}')">${urlData.url}</td>
             <td>
               <button onclick="editURL('${domain}', ${index})">✏️ Edit</button>
               <button onclick="deleteURL('${domain}', ${index})">❌ Delete</button>
