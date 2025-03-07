@@ -49,7 +49,8 @@ Password Manager is a web-based application that allows users to securely manage
 
 ## Screenshots
 
-<img width="758" alt="password-manager" src="https://github.com/user-attachments/assets/c1f5de03-aa4a-4189-9f3d-9054bb3dea64" />
+<img width="758" alt="password-manager" src="https://github.com/user-attachments/assets/aa93a69e-e8ea-4d1e-ae7f-6dce9038f9ec" />
+
 
 ## Contributing
 
