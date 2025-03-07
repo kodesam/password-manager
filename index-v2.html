@@ -38,6 +38,55 @@
       cursor: pointer;
       background-color: #f1f6ff;
     }
+
+    .urlRow {
+      display: none;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+    }
+
+    .modal input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .modal button {
+      padding: 8px 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .modal button:hover {
+      background-color: #0056b3;
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+    }
   </style>
 </head>
 <body>
@@ -64,8 +113,19 @@
     </table>
   </div>
 
+  <!-- Modal for editing username and password -->
+  <div class="overlay" id="overlay"></div>
+  <div class="modal" id="editCredentialsModal">
+    <h3>Edit Credentials</h3>
+    <input type="text" id="editUsernameInput" placeholder="Username">
+    <input type="password" id="editPasswordInput" placeholder="Password">
+    <button onclick="saveCredentials()">Save Changes</button>
+    <button onclick="closeModal()">Cancel</button>
+  </div>
+
   <script>
     var domainAccounts = JSON.parse(localStorage.getItem("domainAccounts")) || {};
+    var currentDomain = null;
 
     function saveDomain(event) {
       event.preventDefault();
@@ -126,24 +186,26 @@
         var row = document.createElement("tr");
         row.innerHTML = `
           <td>${domain}</td>
-          <td contenteditable="true" onblur="editDomain('${domain}', 'description', this.textContent)">${domainData.description}</td>
-          <td contenteditable="true" onblur="editDomain('${domain}', 'username', this.textContent)">${domainData.username}</td>
+          <td>${domainData.description}</td>
+          <td class="username" onclick="copyToClipboard('${domainData.username}')">${domainData.username}</td>
           <td class="password" onclick="copyToClipboard('${domainData.password}')">*****</td>
           <td>
             <button onclick="addURL('${domain}')">Add URL</button>
             <button onclick="toggleURLs('${domain}')">Edit/Show URLs</button>
+            <button onclick="editCredentials('${domain}')">Edit Credentials</button>
+            <button onclick="deleteDomain('${domain}')">Delete Domain</button>
           </td>
         `;
         passwordRecords.appendChild(row);
 
+        // Render URL rows for this domain
         domainData.urls.forEach((urlData, index) => {
           var urlRow = document.createElement("tr");
           urlRow.classList.add("urlRow");
           urlRow.dataset.domain = domain;
-          urlRow.style.display = "none";
           urlRow.innerHTML = `
-            <td colspan="2" contenteditable="true" onblur="editURL('${domain}', ${index}, 'urlDesc', this.textContent)">${urlData.urlDesc}</td>
-            <td colspan="2" contenteditable="true" onblur="editURL('${domain}', ${index}, 'url', this.textContent)">${urlData.url}</td>
+            <td colspan="2">${urlData.urlDesc}</td>
+            <td colspan="2" class="url" onclick="copyToClipboard('${urlData.url}')">${urlData.url}</td>
             <td><button onclick="deleteURL('${domain}', ${index})">Delete</button></td>
           `;
           passwordRecords.appendChild(urlRow);
@@ -162,17 +224,7 @@
       tempInput.select();
       document.execCommand("copy");
       document.body.removeChild(tempInput);
-      alert("Password copied to clipboard!");
-    }
-
-    function editDomain(domain, field, value) {
-      domainAccounts[domain][field] = value;
-      saveToLocalStorage();
-    }
-
-    function editURL(domain, index, field, value) {
-      domainAccounts[domain].urls[index][field] = value;
-      saveToLocalStorage();
+      alert("Copied to clipboard: " + text);
     }
 
     function deleteURL(domain, index) {
@@ -181,9 +233,50 @@
       renderPasswordRecords();
     }
 
+    function deleteDomain(domain) {
+      if (confirm("Are you sure you want to delete this domain and all its associated data?")) {
+        delete domainAccounts[domain];
+        saveToLocalStorage();
+        renderPasswordRecords();
+      }
+    }
+
     function toggleURLs(domain) {
       var rows = document.querySelectorAll(`.urlRow[data-domain='${domain}']`);
       rows.forEach(row => row.style.display = row.style.display === "none" ? "table-row" : "none");
+    }
+
+    function editCredentials(domain) {
+      currentDomain = domain;
+      var domainData = domainAccounts[domain];
+      document.getElementById("editUsernameInput").value = domainData.username;
+      document.getElementById("editPasswordInput").value = domainData.password;
+      openModal();
+    }
+
+    function saveCredentials() {
+      var username = document.getElementById("editUsernameInput").value;
+      var password = document.getElementById("editPasswordInput").value;
+
+      if (username && password) {
+        domainAccounts[currentDomain].username = username;
+        domainAccounts[currentDomain].password = password;
+        saveToLocalStorage();
+        renderPasswordRecords();
+        closeModal();
+      } else {
+        alert("Username and Password cannot be empty!");
+      }
+    }
+
+    function openModal() {
+      document.getElementById("overlay").style.display = "block";
+      document.getElementById("editCredentialsModal").style.display = "block";
+    }
+
+    function closeModal() {
+      document.getElementById("overlay").style.display = "none";
+      document.getElementById("editCredentialsModal").style.display = "none";
     }
 
     renderPasswordRecords();
