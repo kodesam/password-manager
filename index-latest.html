@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Password Manager</title>
+  <style>
+    body {
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #fff;
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: #fff;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 30px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.1);
+      font-weight: bold;
+    }
+
+    .username:hover, .url:hover {
+      cursor: pointer;
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .password {
+      cursor: pointer;
+    }
+
+    .urlRow {
+      display: none;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(30, 60, 114, 0.9);
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      color: #fff;
+    }
+
+    .modal input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .modal input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .modal button {
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .modal button:hover {
+      background: #0056b3;
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+    }
+
+    .last-changed {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    button {
+      padding: 8px 16px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      margin: 2px;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    .password:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 5px;
+    }
+
+    .action-buttons button {
+      flex: 1;
+    }
+
+    .icon {
+      margin-right: 5px;
+    }
+
+    /* Toast Notification Styles */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-size: 14px;
+      z-index: 1001;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔒 Password Manager</h1>
+    <h2>Manage Your Passwords Securely</h2>
+
+    <form id="domainForm" onsubmit="saveDomain(event)">
+      <input type="text" id="domainInput" placeholder="Domain" required>
+      <input type="text" id="descInput" placeholder="Description" required>
+      <input type="text" id="usernameInput" placeholder="Username" required>
+      <input type="password" id="passwordInput" placeholder="Password" required>
+      <button type="submit">💾 Save Domain</button>
+    </form>
+
+    <table id="passwordTable">
+      <tr>
+        <th>🌐 Domain</th>
+        <th>📝 Description</th>
+        <th>👤 Username</th>
+        <th>🔑 Password</th>
+        <th>🕒 Last Changed</th>
+        <th>⚙️ Action</th>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Modal for editing username and password -->
+  <div class="overlay" id="overlay"></div>
+  <div class="modal" id="editCredentialsModal">
+    <h3>✏️ Edit Credentials</h3>
+    <input type="text" id="editUsernameInput" placeholder="Username">
+    <input type="password" id="editPasswordInput" placeholder="Password">
+    <button onclick="saveCredentials()">💾 Save Changes</button>
+    <button onclick="closeModal()">❌ Cancel</button>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">Copied to clipboard!</div>
+
+  <script>
+    var domainAccounts = JSON.parse(localStorage.getItem("domainAccounts")) || {};
+    var currentDomain = null;
+
+    function saveDomain(event) {
+      event.preventDefault();
+      var domain = document.getElementById("domainInput").value;
+      var description = document.getElementById("descInput").value;
+      var username = document.getElementById("usernameInput").value;
+      var password = document.getElementById("passwordInput").value;
+
+      if (!domainAccounts[domain]) {
+        domainAccounts[domain] = { description, username, password, urls: [], lastChanged: new Date().toLocaleString() };
+      } else {
+        domainAccounts[domain].description = description;
+        domainAccounts[domain].username = username;
+        domainAccounts[domain].password = password;
+        domainAccounts[domain].lastChanged = new Date().toLocaleString(); // Update last changed timestamp
+        if (!domainAccounts[domain].urls) {
+          domainAccounts[domain].urls = []; // Ensure URLs array exists
+        }
+      }
+
+      saveToLocalStorage();
+      renderPasswordRecords();
+      document.getElementById("domainForm").reset();
+    }
+
+    function addURL(domain) {
+      var urlDesc = prompt("Enter URL description:");
+      var url = prompt("Enter URL:");
+      if (urlDesc && url) {
+        if (!domainAccounts[domain].urls) {
+          domainAccounts[domain].urls = []; // Ensure array exists
+        }
+        domainAccounts[domain].urls.push({ urlDesc, url });
+        saveToLocalStorage();
+        renderPasswordRecords();
+      }
+    }
+
+    function renderPasswordRecords() {
+      var passwordRecords = document.getElementById("passwordTable");
+      passwordRecords.innerHTML = `
+        <tr>
+          <th>🌐 Domain</th>
+          <th>📝 Description</th>
+          <th>👤 Username</th>
+          <th>🔑 Password</th>
+          <th>🕒 Last Changed</th>
+          <th>⚙️ Action</th>
+        </tr>
+      `;
+
+      Object.keys(domainAccounts).forEach(domain => {
+        var domainData = domainAccounts[domain];
+
+        // Ensure URLs array exists
+        if (!domainData.urls) {
+          domainData.urls = [];
+        }
+
+        var row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${domain}</td>
+          <td>${domainData.description}</td>
+          <td class="username" onclick="copyToClipboard('${domainData.username}')">${domainData.username}</td>
+          <td class="password" id="password-${domain}" onclick="copyToClipboard('${domainData.password}')">*****</td>
+          <td class="last-changed">${domainData.lastChanged || "Never"}</td>
+          <td>
+            <div class="action-buttons">
+              <button onclick="showPassword('${domain}')">👁️ Show Password</button>
+              <button onclick="addURL('${domain}')">➕ Add URL</button>
+              <button onclick="toggleURLs('${domain}')">🔗 Edit/Show URLs</button>
+              <button onclick="editCredentials('${domain}')">✏️ Edit Credentials</button>
+              <button onclick="deleteDomain('${domain}')">❌ Delete Domain</button>
+            </div>
+          </td>
+        `;
+        passwordRecords.appendChild(row);
+
+        // Render URL rows for this domain
+        domainData.urls.forEach((urlData, index) => {
+          var urlRow = document.createElement("tr");
+          urlRow.classList.add("urlRow");
+          urlRow.dataset.domain = domain;
+          urlRow.innerHTML = `
+            <td colspan="2">${urlData.urlDesc}</td>
+            <td colspan="2" class="url" onclick="copyToClipboard('${urlData.url}')">${urlData.url}</td>
+            <td><button onclick="deleteURL('${domain}', ${index})">❌ Delete</button></td>
+          `;
+          passwordRecords.appendChild(urlRow);
+        });
+      });
+    }
+
+    function saveToLocalStorage() {
+      localStorage.setItem("domainAccounts", JSON.stringify(domainAccounts));
+    }
+
+    function copyToClipboard(text) {
+      var tempInput = document.createElement("input");
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+
+      // Show toast notification
+      showToast("Copied to clipboard!");
+    }
+
+    function deleteURL(domain, index) {
+      domainAccounts[domain].urls.splice(index, 1);
+      saveToLocalStorage();
+      renderPasswordRecords();
+    }
+
+    function deleteDomain(domain) {
+      if (confirm("Are you sure you want to delete this domain and all its associated data?")) {
+        delete domainAccounts[domain];
+        saveToLocalStorage();
+        renderPasswordRecords();
+      }
+    }
+
+    function toggleURLs(domain) {
+      var rows = document.querySelectorAll(`.urlRow[data-domain='${domain}']`);
+      rows.forEach(row => row.style.display = row.style.display === "none" ? "table-row" : "none");
+    }
+
+    function editCredentials(domain) {
+      currentDomain = domain;
+      var domainData = domainAccounts[domain];
+      document.getElementById("editUsernameInput").value = domainData.username;
+      document.getElementById("editPasswordInput").value = domainData.password;
+      openModal();
+    }
+
+    function saveCredentials() {
+      var username = document.getElementById("editUsernameInput").value;
+      var password = document.getElementById("editPasswordInput").value;
+
+      if (username && password) {
+        domainAccounts[currentDomain].username = username;
+        domainAccounts[currentDomain].password = password;
+        domainAccounts[currentDomain].lastChanged = new Date().toLocaleString(); // Update last changed timestamp
+        saveToLocalStorage();
+        renderPasswordRecords();
+        closeModal();
+      } else {
+        alert("Username and Password cannot be empty!");
+      }
+    }
+
+    function showPassword(domain) {
+      var passwordCell = document.getElementById(`password-${domain}`);
+      var password = domainAccounts[domain].password;
+
+      // Toggle between showing the password and hiding it
+      if (passwordCell.textContent === "*****") {
+        passwordCell.textContent = password;
+      } else {
+        passwordCell.textContent = "*****";
+      }
+    }
+
+    function openModal() {
+      document.getElementById("overlay").style.display = "block";
+      document.getElementById("editCredentialsModal").style.display = "block";
+    }
+
+    function closeModal() {
+      document.getElementById("overlay").style.display = "none";
+      document.getElementById("editCredentialsModal").style.display = "none";
+    }
+
+    function showToast(message) {
+      var toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+
+      // Hide the toast after 2 seconds
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2000);
+    }
+
+    renderPasswordRecords();
+  </script>
+</body>
+</html>
