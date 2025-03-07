@@ -175,9 +175,30 @@
     .toast.show {
       opacity: 1;
     }
+
+    /* Reset Button */
+    .reset-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .reset-button:hover {
+      background: #cc0000;
+    }
   </style>
 </head>
 <body>
+  <!-- Reset Button -->
+  <button class="reset-button" onclick="resetRecords()">🔄 Reset All Records</button>
+
   <div class="container">
     <h1>🔒 Password Manager</h1>
     <h2>Manage Your Passwords Securely</h2>
@@ -214,12 +235,22 @@
     <button onclick="closeModal()">❌ Cancel</button>
   </div>
 
+  <!-- Modal for editing URL description and URL -->
+  <div class="modal" id="editURLModal">
+    <h3>✏️ Edit URL</h3>
+    <input type="text" id="editURLDescInput" placeholder="URL Description">
+    <input type="text" id="editURLInput" placeholder="URL">
+    <button onclick="saveURLEdit()">💾 Save Changes</button>
+    <button onclick="closeURLEditModal()">❌ Cancel</button>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast" class="toast">Copied to clipboard!</div>
 
   <script>
     var domainAccounts = JSON.parse(localStorage.getItem("domainAccounts")) || {};
     var currentDomain = null;
+    var currentURLIndex = null;
 
     function saveDomain(event) {
       event.preventDefault();
@@ -305,8 +336,11 @@
           urlRow.dataset.domain = domain;
           urlRow.innerHTML = `
             <td colspan="2">${urlData.urlDesc}</td>
-            <td colspan="2" class="url" onclick="copyToClipboard('${urlData.url}')">${urlData.url}</td>
-            <td><button onclick="deleteURL('${domain}', ${index})">❌ Delete</button></td>
+            <td colspan="2">${urlData.url}</td>
+            <td>
+              <button onclick="editURL('${domain}', ${index})">✏️ Edit</button>
+              <button onclick="deleteURL('${domain}', ${index})">❌ Delete</button>
+            </td>
           `;
           passwordRecords.appendChild(urlRow);
         });
@@ -333,6 +367,30 @@
       domainAccounts[domain].urls.splice(index, 1);
       saveToLocalStorage();
       renderPasswordRecords();
+    }
+
+    function editURL(domain, index) {
+      currentDomain = domain;
+      currentURLIndex = index;
+      var urlData = domainAccounts[domain].urls[index];
+      document.getElementById("editURLDescInput").value = urlData.urlDesc;
+      document.getElementById("editURLInput").value = urlData.url;
+      openURLEditModal();
+    }
+
+    function saveURLEdit() {
+      var urlDesc = document.getElementById("editURLDescInput").value;
+      var url = document.getElementById("editURLInput").value;
+
+      if (urlDesc && url) {
+        domainAccounts[currentDomain].urls[currentURLIndex].urlDesc = urlDesc;
+        domainAccounts[currentDomain].urls[currentURLIndex].url = url;
+        saveToLocalStorage();
+        renderPasswordRecords();
+        closeURLEditModal();
+      } else {
+        alert("URL Description and URL cannot be empty!");
+      }
     }
 
     function deleteDomain(domain) {
@@ -407,6 +465,16 @@
       document.getElementById("editCredentialsModal").style.display = "none";
     }
 
+    function openURLEditModal() {
+      document.getElementById("overlay").style.display = "block";
+      document.getElementById("editURLModal").style.display = "block";
+    }
+
+    function closeURLEditModal() {
+      document.getElementById("overlay").style.display = "none";
+      document.getElementById("editURLModal").style.display = "none";
+    }
+
     function showToast(message) {
       var toast = document.getElementById("toast");
       toast.textContent = message;
@@ -416,6 +484,15 @@
       setTimeout(() => {
         toast.classList.remove("show");
       }, 2000);
+    }
+
+    function resetRecords() {
+      if (confirm("Are you sure you want to reset all records? This action cannot be undone.")) {
+        domainAccounts = {}; // Clear the domainAccounts object
+        localStorage.removeItem("domainAccounts"); // Clear localStorage
+        renderPasswordRecords(); // Re-render the table
+        showToast("All records have been reset.");
+      }
     }
 
     renderPasswordRecords();
