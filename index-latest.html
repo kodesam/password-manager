@@ -202,10 +202,12 @@
     </table>
   </div>
 
-  <!-- Modal for editing username and password -->
+  <!-- Modal for editing domain, description, username, and password -->
   <div class="overlay" id="overlay"></div>
   <div class="modal" id="editCredentialsModal">
     <h3>✏️ Edit Credentials</h3>
+    <input type="text" id="editDomainInput" placeholder="Domain">
+    <input type="text" id="editDescInput" placeholder="Description">
     <input type="text" id="editUsernameInput" placeholder="Username">
     <input type="password" id="editPasswordInput" placeholder="Password">
     <button onclick="saveCredentials()">💾 Save Changes</button>
@@ -349,24 +351,37 @@
     function editCredentials(domain) {
       currentDomain = domain;
       var domainData = domainAccounts[domain];
+      document.getElementById("editDomainInput").value = domain;
+      document.getElementById("editDescInput").value = domainData.description;
       document.getElementById("editUsernameInput").value = domainData.username;
       document.getElementById("editPasswordInput").value = domainData.password;
       openModal();
     }
 
     function saveCredentials() {
+      var newDomain = document.getElementById("editDomainInput").value;
+      var description = document.getElementById("editDescInput").value;
       var username = document.getElementById("editUsernameInput").value;
       var password = document.getElementById("editPasswordInput").value;
 
-      if (username && password) {
-        domainAccounts[currentDomain].username = username;
-        domainAccounts[currentDomain].password = password;
-        domainAccounts[currentDomain].lastChanged = new Date().toLocaleString(); // Update last changed timestamp
+      if (newDomain && description && username && password) {
+        // If the domain name is changed, update the key in the domainAccounts object
+        if (newDomain !== currentDomain) {
+          domainAccounts[newDomain] = domainAccounts[currentDomain];
+          delete domainAccounts[currentDomain];
+        }
+
+        // Update domain data
+        domainAccounts[newDomain].description = description;
+        domainAccounts[newDomain].username = username;
+        domainAccounts[newDomain].password = password;
+        domainAccounts[newDomain].lastChanged = new Date().toLocaleString(); // Update last changed timestamp
+
         saveToLocalStorage();
         renderPasswordRecords();
         closeModal();
       } else {
-        alert("Username and Password cannot be empty!");
+        alert("All fields are required!");
       }
     }
 
