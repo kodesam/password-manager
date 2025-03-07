@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Password Manager</title>
+  <style>
+    body {
+      background-color: #f6fbff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+      background-color: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border: 1px solid #ddd;
+    }
+
+    .password:hover, .url:hover, .username:hover {
+      cursor: pointer;
+      background-color: #f1f6ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Password Manager</h1>
+    <h2>Manage Multiple Domains</h2>
+
+    <form id="domainForm" onsubmit="saveDomain(event)">
+      <input type="text" id="domainInput" placeholder="Domain" required>
+      <input type="text" id="descInput" placeholder="Description" required>
+      <input type="text" id="usernameInput" placeholder="Username" required>
+      <input type="password" id="passwordInput" placeholder="Password" required>
+      <button type="submit">Save Domain</button>
+    </form>
+
+    <table id="passwordTable">
+      <tr>
+        <th>Domain</th>
+        <th>Description</th>
+        <th>Username</th>
+        <th>Password</th>
+        <th>Action</th>
+      </tr>
+    </table>
+  </div>
+
+  <script>
+    var domainAccounts = JSON.parse(localStorage.getItem("domainAccounts")) || {};
+
+    function saveDomain(event) {
+      event.preventDefault();
+      var domain = document.getElementById("domainInput").value;
+      var description = document.getElementById("descInput").value;
+      var username = document.getElementById("usernameInput").value;
+      var password = document.getElementById("passwordInput").value;
+
+      if (!domainAccounts[domain]) {
+        domainAccounts[domain] = { description, username, password, urls: [] };
+      } else {
+        domainAccounts[domain].description = description;
+        domainAccounts[domain].username = username;
+        domainAccounts[domain].password = password;
+        if (!domainAccounts[domain].urls) {
+          domainAccounts[domain].urls = []; // Ensure URLs array exists
+        }
+      }
+
+      saveToLocalStorage();
+      renderPasswordRecords();
+      document.getElementById("domainForm").reset();
+    }
+
+    function addURL(domain) {
+      var urlDesc = prompt("Enter URL description:");
+      var url = prompt("Enter URL:");
+      if (urlDesc && url) {
+        if (!domainAccounts[domain].urls) {
+          domainAccounts[domain].urls = []; // Ensure array exists
+        }
+        domainAccounts[domain].urls.push({ urlDesc, url });
+        saveToLocalStorage();
+        renderPasswordRecords();
+      }
+    }
+
+    function renderPasswordRecords() {
+      var passwordRecords = document.getElementById("passwordTable");
+      passwordRecords.innerHTML = `
+        <tr>
+          <th>Domain</th>
+          <th>Description</th>
+          <th>Username</th>
+          <th>Password</th>
+          <th>Action</th>
+        </tr>
+      `;
+
+      Object.keys(domainAccounts).forEach(domain => {
+        var domainData = domainAccounts[domain];
+
+        // Ensure URLs array exists
+        if (!domainData.urls) {
+          domainData.urls = [];
+        }
+
+        var row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${domain}</td>
+          <td contenteditable="true" onblur="editDomain('${domain}', 'description', this.textContent)">${domainData.description}</td>
+          <td contenteditable="true" onblur="editDomain('${domain}', 'username', this.textContent)">${domainData.username}</td>
+          <td class="password" onclick="copyToClipboard('${domainData.password}')">*****</td>
+          <td>
+            <button onclick="addURL('${domain}')">Add URL</button>
+            <button onclick="toggleURLs('${domain}')">Edit/Show URLs</button>
+          </td>
+        `;
+        passwordRecords.appendChild(row);
+
+        domainData.urls.forEach((urlData, index) => {
+          var urlRow = document.createElement("tr");
+          urlRow.classList.add("urlRow");
+          urlRow.dataset.domain = domain;
+          urlRow.style.display = "none";
+          urlRow.innerHTML = `
+            <td colspan="2" contenteditable="true" onblur="editURL('${domain}', ${index}, 'urlDesc', this.textContent)">${urlData.urlDesc}</td>
+            <td colspan="2" contenteditable="true" onblur="editURL('${domain}', ${index}, 'url', this.textContent)">${urlData.url}</td>
+            <td><button onclick="deleteURL('${domain}', ${index})">Delete</button></td>
+          `;
+          passwordRecords.appendChild(urlRow);
+        });
+      });
+    }
+
+    function saveToLocalStorage() {
+      localStorage.setItem("domainAccounts", JSON.stringify(domainAccounts));
+    }
+
+    function copyToClipboard(text) {
+      var tempInput = document.createElement("input");
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+      alert("Password copied to clipboard!");
+    }
+
+    function editDomain(domain, field, value) {
+      domainAccounts[domain][field] = value;
+      saveToLocalStorage();
+    }
+
+    function editURL(domain, index, field, value) {
+      domainAccounts[domain].urls[index][field] = value;
+      saveToLocalStorage();
+    }
+
+    function deleteURL(domain, index) {
+      domainAccounts[domain].urls.splice(index, 1);
+      saveToLocalStorage();
+      renderPasswordRecords();
+    }
+
+    function toggleURLs(domain) {
+      var rows = document.querySelectorAll(`.urlRow[data-domain='${domain}']`);
+      rows.forEach(row => row.style.display = row.style.display === "none" ? "table-row" : "none");
+    }
+
+    renderPasswordRecords();
+  </script>
+</body>
+</html>
