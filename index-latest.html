@@ -230,6 +230,12 @@
       <input type="text" id="usernameInput" placeholder="Username" required>
       <input type="password" id="passwordInput" placeholder="Password" required>
       <button type="submit">💾 Save Domain</button>
+      <input type="file" id="importFile" accept=".json" hidden onchange="importPasswords(event)">
+        <button onclick="document.getElementById('importFile').click()"> Import </button>
+        <script>
+          document.getElementById("importFile").addEventListener("change", importPasswords);
+        </script>
+      <button onclick="exportPasswords()"> Export </button>
     </form>
 
     <table id="passwordTable">
@@ -520,7 +526,39 @@
         showToast("All records have been reset.");
       }
     }
+    
+    function exportPasswords() {
+      const passwords = JSON.parse(localStorage.getItem("domainAccounts")) || {};
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(passwords, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "passwords_backup.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
 
+    function importPasswords(event) {
+      console.log("import function()")
+      const fileInput = event.target;
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const importedPasswords = JSON.parse(e.target.result);
+          localStorage.setItem("domainAccounts", JSON.stringify(importedPasswords));
+          domainAccounts = importedPasswords; 
+          renderPasswordRecords(); 
+          alert("Passwords imported successfully!");
+        } catch (error) {
+          alert("Invalid JSON file!");
+        }
+        fileInput.value = "";
+      };
+      reader.readAsText(file);
+    }
     renderPasswordRecords();
   </script>
 </body>
